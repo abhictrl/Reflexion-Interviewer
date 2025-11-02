@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reflexion Interviewer - A.I. Harrison</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .upload-section {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .upload-section.active {
+            display: block;
+        }
+
+        .interview-section {
+            display: none;
+        }
+
+        .interview-section.active {
+            display: block;
+        }
+
+        .report-section {
+            display: none;
+        }
+
+        .report-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 20px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+
+        .file-input-label:hover {
+            background: #f0f2ff;
+            border-color: #764ba2;
+        }
+
+        .file-input-label.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+        }
+
+        .file-input-label .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            line-height: 1.5;
+        }
+
+        .message.assistant .message-bubble {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-top-left-radius: 4px;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-top-right-radius: 4px;
+        }
+
+        .message-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            opacity: 0.7;
+        }
+
+        .typing-indicator {
+            display: none;
+            margin-bottom: 15px;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .phase-indicator {
+            background: #f0f2ff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .report-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .report-card h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .score {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .recommendation {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .recommendation.strong_yes,
+        .recommendation.yes {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .recommendation.maybe {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .recommendation.no,
+        .recommendation.strong_no {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loader.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        ul {
+            list-style-position: inside;
+            padding-left: 0;
+        }
+
+        li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Reflexion Interviewer</h1>
+            <p>Powered by A.I. Harrison</p>
+        </div>
+
+        <div class="content">
+            <!-- Upload Section -->
+            <div class="upload-section active" id="uploadSection">
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label for="jobDescription">Job Description</label>
+                        <textarea id="jobDescription" placeholder="Paste the job description here..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Upload Resume (PDF)</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="resumeFile" accept=".pdf" required>
+                            <label for="resumeFile" class="file-input-label" id="fileLabel">
+                                <div class="icon">📄</div>
+                                <div>Click to upload or drag and drop</div>
+                                <div class="file-name" id="fileName"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="error" id="uploadError" style="display: none;"></div>
+
+                    <button type="submit" class="btn" id="uploadBtn">Start Interview</button>
+
+                    <div class="loader" id="uploadLoader">
+                        <div class="spinner"></div>
+                        <p>Analyzing resume and setting up interview...</p>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Interview Section -->
+            <div class="interview-section" id="interviewSection">
+                <div class="phase-indicator" id="phaseIndicator">Phase 1: Warm-up & Background</div>
+
+                <div class="chat-container" id="chatContainer">
+                    <!-- Messages will be added here -->
+                </div>
+
+                <div class="typing-indicator" id="typingIndicator">
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+
+                <div class="error" id="interviewError" style="display: none;"></div>
+
+                <form id="messageForm">
+                    <div class="form-group">
+                        <textarea id="messageInput" placeholder="Type your response here..." rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn" id="sendBtn">Send</button>
+                </form>
+            </div>
+
+            <!-- Report Section -->
+            <div class="report-section" id="reportSection">
+                <h2 style="margin-bottom: 20px; color: #333;">Interview Complete! 📊</h2>
+
+                <div class="report-card">
+                    <h3>Overall Score</h3>
+                    <div class="score" id="overallScore">-</div>
+                    <div class="recommendation" id="recommendation">-</div>
+                </div>
+
+                <div class="report-card" id="strengthsSection">
+                    <h3>Strengths</h3>
+                    <ul id="strengthsList"></ul>
+                </div>
+
+                <div class="report-card" id="weaknessesSection">
+                    <h3>Areas for Improvement</h3>
+                    <ul id="weaknessesList"></ul>
+                </div>
+
+                <div class="report-card">
+                    <h3>Summary</h3>
+                    <p id="summary"></p>
+                </div>
+
+                <button class="btn" onclick="location.reload()" style="margin-top: 20px;">Start New Interview</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let sessionId = null;
+
+        // File upload handling
+        const fileInput = document.getElementById('resumeFile');
+        const fileName = document.getElementById('fileName');
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                fileName.textContent = e.target.files[0].name;
+            }
+        });
+
+        // Drag and drop
+        const fileLabel = document.getElementById('fileLabel');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            fileLabel.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            fileLabel.addEventListener(eventName, () => fileLabel.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            fileLabel.addEventListener(eventName, () => fileLabel.classList.remove('dragover'), false);
+        });
+
+        fileLabel.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                fileName.textContent = files[0].name;
+            }
+        });
+
+        // Upload form
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const file = fileInput.files[0];
+            const jobDescription = document.getElementById('jobDescription').value;
+            const errorDiv = document.getElementById('uploadError');
+            const loader = document.getElementById('uploadLoader');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            if (!file || !jobDescription) {
+                showError(errorDiv, 'Please provide both resume and job description');
+                return;
+            }
+
+            // Show loader
+            loader.classList.add('active');
+            uploadBtn.disabled = true;
+            errorDiv.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('job_description', jobDescription);
+
+                const response = await fetch(`${API_BASE}/api/upload-resume`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to upload resume');
+                }
+
+                // Save session ID and show interview
+                sessionId = data.session_id;
+                document.getElementById('uploadSection').classList.remove('active');
+                document.getElementById('interviewSection').classList.add('active');
+
+                // Start interview with opening
+                await startInterview();
+
+            } catch (error) {
+                showError(errorDiv, error.message);
+            } finally {
+                loader.classList.remove('active');
+                uploadBtn.disabled = false;
+            }
+        });
+
+        // Start interview
+        async function startInterview() {
+            const chatContainer = document.getElementById('chatContainer');
+            addMessage('assistant', 'Hello! I\'m A.I. Harrison, and I\'ll be conducting your technical interview today. Let me get started...', chatContainer);
+            
+            // Get opening question
+            await sendMessage('');
+        }
+
+        // Message form
+        document.getElementById('messageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (message) {
+                addMessage('user', message);
+                messageInput.value = '';
+                await sendMessage(message);
+            }
+        });
+
+        // Send message
+        async function sendMessage(message) {
+            const chatContainer = document.getElementById('chatContainer');
+            const typingIndicator = document.getElementById('typingIndicator');
+            const errorDiv = document.getElementById('interviewError');
+            const sendBtn = document.getElementById('sendBtn');
+
+            // Show typing indicator
+            typingIndicator.classList.add('active');
+            errorDiv.style.display = 'none';
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/interview/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        message: message
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to send message');
+                }
+
+                // Update phase indicator
+                document.getElementById('phaseIndicator').textContent = 
+                    `Phase ${data.current_phase}: ${data.phase_name}`;
+
+                // Add assistant message
+                addMessage('assistant', data.message);
+
+                // Check if interview is complete
+                if (data.interview_complete) {
+                    // Get report
+                    setTimeout(async () => {
+                        await generateReport();
+                    }, 2000);
+                }
+
+            } catch (error) {
+                showError(errorDiv, error.message);
+            } finally {
+                typingIndicator.classList.remove('active');
+                sendBtn.disabled = false;
+            }
+        }
+
+        // Add message to chat
+        function addMessage(role, text) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const label = document.createElement('div');
+            label.className = 'message-label';
+            label.textContent = role === 'assistant' ? 'A.I. Harrison' : 'You';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+            
+            messageDiv.appendChild(label);
+            messageDiv.appendChild(bubble);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Generate report
+        async function generateReport() {
+            const loader = document.createElement('div');
+            loader.className = 'loader active';
+            loader.innerHTML = '<div class="spinner"></div><p>Generating assessment report...</p>';
+            document.getElementById('interviewSection').appendChild(loader);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/interview/report/${sessionId}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to generate report');
+                }
+
+                // Display report
+                displayReport(data.report);
+
+            } catch (error) {
+                alert('Error generating report: ' + error.message);
+            } finally {
+                loader.remove();
+            }
+        }
+
+        // Display report
+        function displayReport(report) {
+            document.getElementById('interviewSection').classList.remove('active');
+            document.getElementById('reportSection').classList.add('active');
+
+            document.getElementById('overallScore').textContent = report.overall_score.toFixed(1);
+            
+            const recommendation = document.getElementById('recommendation');
+            recommendation.textContent = formatRecommendation(report.recommendation);
+            recommendation.className = `recommendation ${report.recommendation}`;
+
+            // Strengths
+            const strengthsList = document.getElementById('strengthsList');
+            report.strengths.top_strengths.forEach(strength => {
+                const li = document.createElement('li');
+                li.textContent = strength;
+                strengthsList.appendChild(li);
+            });
+
+            // Weaknesses
+            const weaknessesList = document.getElementById('weaknessesList');
+            report.weaknesses.areas_for_improvement.forEach(weakness => {
+                const li = document.createElement('li');
+                li.textContent = weakness;
+                weaknessesList.appendChild(li);
+            });
+
+            document.getElementById('summary').textContent = report.summary;
+        }
+
+        function formatRecommendation(rec) {
+            const map = {
+                'strong_yes': 'Strong Yes ✓✓',
+                'yes': 'Yes ✓',
+                'maybe': 'Maybe ?',
+                'no': 'No ✗',
+                'strong_no': 'Strong No ✗✗'
+            };
+            return map[rec] || rec;
+        }
+
+        function showError(errorDiv, message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+
