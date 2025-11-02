@@ -164,9 +164,9 @@ All configuration is managed through environment variables in `.env`:
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributors
+Abhishek Rana [https://github.com/abhictrl]
 
-[Add contributors here]
 
