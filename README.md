@@ -65,7 +65,7 @@ Reflexion Interviewer/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd "Reflexion Interviewer"
+   cd "Reflexion-Interviewer"
    ```
 
 2. **Create a virtual environment**
