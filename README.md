@@ -11,6 +11,20 @@ The Reflexion Interviewer is an AI-powered autonomous interview agent designed t
 
 The goal is to create a more realistic, fair, and effective screening tool that saves senior engineers' time while providing a better candidate experience.
 
+## Screenshots
+
+### Interface Overview
+![Resume Upload Interface](Sample_Run_1.png)
+*Upload resume (PDF or image) and job description to start an interview*
+
+### Interview in Progress  
+![Interview Conversation](Sample_Run_2.png)
+*Dynamic, conversational interview with A.I. Harrison*
+
+### Assessment Report
+![Interview Assessment Report](Sample_Run_3.png)
+*Comprehensive assessment report with scores and recommendations*
+
 ## Architecture
 
 ### Models Used
