@@ -101,26 +101,66 @@ Focus on technical skills, programming languages, frameworks, and experience rel
             logger.error(f"Error analyzing resume: {str(e)}")
             raise
     
-    async def _analyze_resume_image(self, image: Image.Image) -> Dict[str, Any]:
+    async def analyze_image(self, image_bytes: bytes, image_format: str = "PNG") -> CandidateProfile:
+        """
+        Analyze an image resume and extract structured information
+        
+        Args:
+            image_bytes: Binary content of the image file
+            image_format: Image format (PNG, JPEG, JPG)
+        
+        Returns:
+            CandidateProfile object with extracted information
+        """
+        try:
+            logger.info(f"Analyzing resume image (format: {image_format})...")
+            
+            # Convert bytes to PIL Image
+            image = Image.open(io.BytesIO(image_bytes))
+            
+            # Convert to RGB if necessary (handles RGBA, P mode, etc.)
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Analyze the image
+            candidate_data = await self._analyze_resume_image(image, image_format=image_format.upper())
+            
+            # Parse and validate the extracted data
+            profile = self._parse_candidate_data(candidate_data)
+            logger.info(f"Successfully extracted profile for: {profile.name}")
+            
+            return profile
+            
+        except Exception as e:
+            logger.error(f"Error analyzing resume image: {str(e)}")
+            raise
+    
+    async def _analyze_resume_image(self, image: Image.Image, image_format: str = "PNG") -> Dict[str, Any]:
         """
         Analyze a single resume image using the vision-language model
         
         Args:
             image: PIL Image object
+            image_format: Image format (PNG, JPEG, etc.)
         
         Returns:
             Extracted candidate data as dictionary
         """
         # Convert image to base64
         buffer = io.BytesIO()
-        image.save(buffer, format='PNG')
+        # Map format for PIL save method
+        pil_format = 'JPEG' if image_format.upper() in ('JPEG', 'JPG') else 'PNG'
+        image.save(buffer, format=pil_format)
         image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        # Normalize format for API call
+        api_format = 'jpeg' if pil_format == 'JPEG' else 'png'
         
         # Call NVIDIA VL model
         response = await self.nvidia_client.analyze_resume_image(
             image_base64=image_base64,
             prompt=self.resume_analysis_prompt,
-            image_format="png"
+            image_format=api_format
         )
         
         # Extract the JSON response

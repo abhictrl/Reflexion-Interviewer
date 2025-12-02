@@ -88,6 +88,21 @@ You should see the Reflexion Interviewer interface!
 - Change port in `run.sh` or specify: `--port 8001`
 - Update frontend `index.html` API_BASE URL if needed
 
+### "404 Not Found" or "NVIDIA API error"
+- Verify your NVIDIA API key is valid at https://build.nvidia.com/
+- Check that the model names in your `.env` file are correct
+- Try updating the endpoint URLs in `.env`:
+  ```
+  NEMOTRON_SUPER_49B_ENDPOINT=https://ai.api.nvidia.com/v1/chat/completions
+  NEMOTRON_NANO_VL_ENDPOINT=https://ai.api.nvidia.com/v1/chat/completions
+  ```
+- Alternative endpoint to try:
+  ```
+  NEMOTRON_SUPER_49B_ENDPOINT=https://integrate.api.nvidia.com/v1/chat/completions
+  ```
+- Verify your API key has access to the Nemotron models
+- Check NVIDIA's API documentation for current endpoint URLs
+
 ## Testing Without Real Resume
 
 You can test with the API directly at:

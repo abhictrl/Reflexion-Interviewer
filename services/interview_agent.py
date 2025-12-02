@@ -93,6 +93,8 @@ class InterviewAgent:
         """Build the system prompt for A.I. Harrison"""
         self.system_prompt = f"""You are A.I. Harrison, a professional and friendly senior software engineering interviewer conducting a technical interview.
 
+CRITICAL: Output ONLY the interview question or response. Do NOT include any reasoning, thinking, or meta-commentary. Do NOT explain what you're doing or why. Just ask the question directly.
+
 Your role:
 - Conduct a thorough but respectful technical interview
 - Ask probing questions based on the candidate's resume
@@ -116,12 +118,21 @@ Interview Structure:
 
 Guidelines:
 - Keep questions relevant to the job and candidate's background
-- Ask follow-up questions based on their answers
-- Encourage detailed explanations
+- Ask SPECIFIC follow-up questions based on their LAST response - reference what they just said
+- Do NOT repeat questions you've already asked
+- Do NOT ask generic questions if you've already asked one
+- Encourage detailed explanations by asking for specific examples or details
 - Be supportive and professional
 - Wrap up gracefully when concluding the interview
+- Output ONLY the question/response - no reasoning, no explanations, no meta-commentary
 
-Important: You are currently in Phase {self.current_phase} of the interview. Stay focused on the current phase's objectives.
+You are currently in Phase {self.current_phase} of the interview. Ask a question appropriate for this phase.
+
+IMPORTANT: 
+- Read the candidate's last response carefully
+- Ask a SPECIFIC follow-up question that references something they mentioned
+- Do NOT repeat any question from the conversation history
+- Output ONLY the interview question - no reasoning, no thinking, just the question
 """
     
     def _get_all_skills(self) -> List[str]:
@@ -203,6 +214,10 @@ Let's start with a warm-up question: Tell me a bit about yourself and your backg
             # Generate next response based on current phase
             next_message = await self._generate_next_message()
             
+            # If no message generated, create a contextual fallback
+            if not next_message:
+                next_message = await self._generate_contextual_followup()
+            
             if next_message:
                 self.questions_asked_in_phase += 1
                 self.total_questions += 1
@@ -233,7 +248,157 @@ Let's start with a warm-up question: Tell me a bit about yourself and your backg
             temperature=0.8
         )
         
-        return self.nvidia_client.extract_response_text(response)
+        extracted_response = self.nvidia_client.extract_response_text(response)
+        
+        # If extraction failed or returned None/empty, generate a context-aware question
+        if not extracted_response or len(extracted_response.strip()) < 10:
+            return await self._generate_contextual_followup()
+        
+        # Check if this question was already asked
+        if self._is_repeated_question(extracted_response):
+            logger.warning("Detected repeated question, generating new contextual followup")
+            return await self._generate_contextual_followup()
+        
+        return extracted_response
+    
+    def _is_repeated_question(self, question: str) -> bool:
+        """Check if a question was already asked in the conversation"""
+        question_normalized = question.lower().strip()
+        
+        # Common generic question patterns to detect
+        generic_patterns = [
+            "tell me more about",
+            "can you tell me more",
+            "thank you for sharing",
+            "can you elaborate",
+        ]
+        
+        # Check against all previous assistant messages
+        for msg in self.conversation_history:
+            if msg.role == "assistant":
+                prev_question = msg.content.lower().strip()
+                
+                # Check for generic patterns in both questions
+                curr_has_generic = any(pattern in question_normalized for pattern in generic_patterns)
+                prev_has_generic = any(pattern in prev_question for pattern in generic_patterns)
+                
+                # If both are generic, they're likely the same
+                if curr_has_generic and prev_has_generic:
+                    # Check if they're asking about the same thing
+                    if "project" in question_normalized and "project" in prev_question:
+                        return True
+                    if "experience" in question_normalized and "experience" in prev_question:
+                        return True
+                    if "background" in question_normalized and "background" in prev_question:
+                        return True
+                
+                # Simple similarity check - if questions are very similar, consider it a repeat
+                if len(question_normalized) > 20 and len(prev_question) > 20:
+                    # Check if they share significant overlap
+                    words_curr = set(question_normalized.split())
+                    words_prev = set(prev_question.split())
+                    if len(words_curr) > 0 and len(words_prev) > 0:
+                        overlap = len(words_curr.intersection(words_prev)) / max(len(words_curr), len(words_prev))
+                        if overlap > 0.6:  # 60% word overlap suggests repetition (lowered threshold)
+                            return True
+                
+                # Also check for exact or near-exact matches
+                if question_normalized == prev_question or question_normalized in prev_question or prev_question in question_normalized:
+                    return True
+        
+        return False
+    
+    async def _generate_contextual_followup(self) -> str:
+        """Generate a context-aware follow-up question based on conversation history"""
+        # Get the last user message to create a contextual follow-up
+        if self.conversation_history:
+            last_user_msg = None
+            for msg in reversed(self.conversation_history):
+                if msg.role == "user":
+                    last_user_msg = msg.content
+                    break
+            
+            if last_user_msg:
+                # Generate a contextual follow-up based on what they just said
+                # Extract key topics from their response
+                key_topics = []
+                if "OCR" in last_user_msg or "Optical Character Recognition" in last_user_msg:
+                    key_topics.append("OCR integration")
+                if "API" in last_user_msg:
+                    key_topics.append("API usage")
+                if "app" in last_user_msg.lower() or "application" in last_user_msg.lower():
+                    key_topics.append("application development")
+                
+                contextual_prompt = f"""The candidate just said: "{last_user_msg[:200]}"
+
+Generate a SPECIFIC follow-up question that:
+- References something specific they mentioned (e.g., OCR, API, app, etc.)
+- Asks for technical details or challenges they faced
+- Is different from any question already asked
+- Stays relevant to Phase {self.current_phase}
+
+Examples of good questions:
+- "What challenges did you encounter when integrating the OCR API?"
+- "How did you handle error cases in your expense app?"
+- "Can you walk me through the data flow in that application?"
+
+Output ONLY the question. No reasoning."""
+                
+                messages = [
+                    {"role": "system", "content": "You are a technical interviewer. Generate SPECIFIC follow-up questions that reference what the candidate just said."},
+                    {"role": "user", "content": contextual_prompt}
+                ]
+                
+                response = await self.nvidia_client.chat_completion(
+                    messages=messages,
+                    model_type="super",
+                    temperature=0.8,
+                    max_tokens=150
+                )
+                
+                followup = self.nvidia_client.extract_response_text(response)
+                if followup and len(followup.strip()) > 10:
+                    # Check if this followup is also a repeat
+                    if not self._is_repeated_question(followup):
+                        return followup.strip()
+        
+        # Fallback based on phase - make them more specific to avoid repetition
+        # Get a hint from conversation history
+        recent_topics = []
+        for msg in reversed(self.conversation_history[-4:]):
+            if msg.role == "user":
+                content_lower = msg.content.lower()
+                if "python" in content_lower or "java" in content_lower:
+                    recent_topics.append("programming languages")
+                if "api" in content_lower:
+                    recent_topics.append("APIs")
+                if "app" in content_lower or "application" in content_lower:
+                    recent_topics.append("applications")
+                break
+        
+        topic_hint = recent_topics[0] if recent_topics else "technical skills"
+        
+        phase_fallbacks = {
+            1: f"That's great! Can you walk me through a specific technical challenge you encountered in that project and how you solved it?",
+            2: f"Excellent! Can you dive deeper into the technical implementation? What were the key design decisions you made?",
+            3: f"Thanks for that detail. Let me ask: what was the most complex problem you had to solve in that project?",
+            4: f"Appreciate that insight. How do you approach learning new technologies when starting a project?"
+        }
+        
+        fallback = phase_fallbacks.get(self.current_phase, "That's interesting! Can you tell me more about the technical aspects of that?")
+        
+        # Make sure this fallback hasn't been used before
+        if self._is_repeated_question(fallback):
+            # Generate a different variation
+            variations = {
+                1: "Can you share an example of how you've applied your technical skills in a real-world project?",
+                2: "What's a technical problem you've solved that you're particularly proud of?",
+                3: "Can you describe a time when you had to debug a complex issue? How did you approach it?",
+                4: "What technologies are you most excited to work with, and why?"
+            }
+            fallback = variations.get(self.current_phase, "Can you elaborate on the technical challenges you faced?")
+        
+        return fallback
     
     def _should_advance_phase(self) -> bool:
         """Determine if we should advance to the next phase"""

@@ -24,6 +24,8 @@ class NVIDIAConfig(BaseSettings):
     )
     
     # Model Endpoints
+    # Note: The OpenAI SDK uses base_url and appends /chat/completions automatically
+    # But for direct HTTP calls, we need the full path including /chat/completions
     nemotron_super_endpoint: str = Field(
         default="https://integrate.api.nvidia.com/v1/chat/completions",
         validation_alias="NEMOTRON_SUPER_49B_ENDPOINT"
@@ -34,8 +36,10 @@ class NVIDIAConfig(BaseSettings):
     )
     
     # Model Names
+    # Note: Check NVIDIA's documentation for the correct model name format
+    # Example from NVIDIA: "nvidia/llama-3.3-nemotron-super-49b-v1.5"
     nemotron_super_model: str = Field(
-        default="nvidia/nemotron-super-49b-v1_5",
+        default="nvidia/llama-3.3-nemotron-super-49b-v1.5",
         validation_alias="NEMOTRON_SUPER_49B_MODEL"
     )
     nemotron_vl_model: str = Field(

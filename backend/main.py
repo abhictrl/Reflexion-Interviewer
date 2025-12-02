@@ -11,7 +11,7 @@ import logging
 from typing import Optional
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -90,18 +90,24 @@ async def global_exception_handler(request, exc):
 @app.post("/api/upload-resume", response_model=ResumeUploadResponse)
 async def upload_resume(
     file: UploadFile = File(...),
-    job_description: str = None
+    job_description: str = Form(...)
 ):
     """
-    Upload a resume PDF and job description to start an interview
+    Upload a resume (PDF or image) and job description to start an interview
     
     Expected:
-    - Multipart form with 'file' (PDF) and 'job_description' (text)
+    - Multipart form with 'file' (PDF, PNG, JPG, or JPEG) and 'job_description' (text)
     """
     try:
         # Validate file type
-        if not file.filename.endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="File must be a PDF")
+        filename_lower = file.filename.lower() if file.filename else ""
+        allowed_extensions = ['.pdf', '.png', '.jpg', '.jpeg']
+        
+        if not any(filename_lower.endswith(ext) for ext in allowed_extensions):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"File must be a PDF or image (PNG, JPG, JPEG). Received: {file.filename}"
+            )
         
         # Read file content
         file_content = await file.read()
@@ -111,10 +117,21 @@ async def upload_resume(
         if not job_description:
             raise HTTPException(status_code=400, detail="Job description is required")
         
-        # Analyze resume
-        analyzer = ResumeAnalyzer()
+        # Determine file type and analyze resume
+        analyzer = None
         try:
-            candidate_profile = await analyzer.analyze_pdf(file_content)
+            analyzer = ResumeAnalyzer()
+            
+            if filename_lower.endswith('.pdf'):
+                # Analyze PDF file
+                candidate_profile = await analyzer.analyze_pdf(file_content)
+            else:
+                # Analyze image file
+                image_format = filename_lower.split('.')[-1].upper()
+                if image_format == 'JPG':
+                    image_format = 'JPEG'
+                candidate_profile = await analyzer.analyze_image(file_content, image_format)
+            
             logger.info(f"Resume analyzed for: {candidate_profile.name}")
         except Exception as e:
             logger.error(f"Error analyzing resume: {str(e)}", exc_info=True)
@@ -123,12 +140,12 @@ async def upload_resume(
             if "poppler" in error_message.lower() or "pdftoppm" in error_message.lower():
                 raise HTTPException(
                     status_code=500,
-                    detail="PDF processing error. Please ensure poppler-utils is installed. On macOS: brew install poppler"
+                    detail="PDF processing error. Please ensure poppler-utils is installed. On macOS: brew install poppler. Note: Image files (PNG, JPG) don't require poppler."
                 )
-            elif "NVIDIA_API_KEY" in error_message or "API key" in error_message:
+            elif "NVIDIA_API_KEY" in error_message or "API key" in error_message or "required but not set" in error_message:
                 raise HTTPException(
                     status_code=500,
-                    detail="NVIDIA API key not configured. Please set NVIDIA_API_KEY in .env file"
+                    detail="NVIDIA API key not configured. Please set NVIDIA_API_KEY in .env file. See README.md for setup instructions."
                 )
             elif "timeout" in error_message.lower():
                 raise HTTPException(
@@ -141,7 +158,8 @@ async def upload_resume(
                     detail=f"Failed to process resume: {error_message}"
                 )
         finally:
-            await analyzer.close()
+            if analyzer:
+                await analyzer.close()
         
         # Initialize interview agent
         agent = InterviewAgent(candidate_profile, job_description)
@@ -158,12 +176,17 @@ async def upload_resume(
             message="Resume uploaded and interview session created successfully"
         )
     
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is (they already have proper error messages)
+        raise
     except ValueError as e:
         logger.error(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error uploading resume: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to process resume")
+        logger.error(f"Error uploading resume: {str(e)}", exc_info=True)
+        # Preserve the actual error message for debugging
+        error_msg = str(e)
+        raise HTTPException(status_code=500, detail=f"Failed to process resume: {error_msg}")
 
 
 # ============================================
@@ -183,10 +206,18 @@ async def send_interview_message(request: InterviewMessageRequest):
         if not agent:
             raise HTTPException(status_code=404, detail="Interview session not found")
         
-        # Process message
-        response_text = await agent.process_candidate_response(request.message)
+        # Check if this is the first message (to generate opening)
+        state = agent.get_interview_state()
+        is_first_message = len(state.conversation_history) == 0
         
-        # Get current state
+        # If first message and empty or just whitespace, generate opening
+        if is_first_message and (not request.message or not request.message.strip()):
+            response_text = await agent.generate_opening()
+        else:
+            # Process candidate response
+            response_text = await agent.process_candidate_response(request.message)
+        
+        # Get updated state after processing
         state = agent.get_interview_state()
         
         # Determine phase name
@@ -211,8 +242,9 @@ async def send_interview_message(request: InterviewMessageRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error processing interview message: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to process message")
+        logger.error(f"Error processing interview message: {str(e)}", exc_info=True)
+        error_msg = str(e)
+        raise HTTPException(status_code=500, detail=f"Failed to process message: {error_msg}")
 
 
 @app.get("/api/interview/status/{session_id}", response_model=InterviewStatusResponse)

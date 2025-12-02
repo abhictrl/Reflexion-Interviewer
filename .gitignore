@@ -77,3 +77,15 @@ package-lock.json
 # Build artifacts
 *.pyc
 
+# Test and temporary files
+test_*.py
+test_*.sh
+*.backup
+.env.backup
+.env.correct
+.env.recommended
+fix_env.sh
+
+# Troubleshooting docs (optional - you can commit this if you want)
+# NVIDIA_API_TROUBLESHOOTING.md
+
