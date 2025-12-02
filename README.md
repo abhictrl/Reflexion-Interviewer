@@ -17,8 +17,12 @@ The goal is to create a more realistic, fair, and effective screening tool that 
 ## Screenshots
 
 ### Interface Overview
-![Resume Upload Interface](Sample_Run_1.png)
+![Resume Upload Interface](Sample_Run.png)
 *Upload resume (PDF or image) and job description to start an interview*
+
+### Interview in Progress  
+![Interview Conversation](Sample_Run_1.png)
+*Dynamic, conversational interview with A.I. Harrison*
 
 ### Interview in Progress  
 ![Interview Conversation](Sample_Run_2.png)
