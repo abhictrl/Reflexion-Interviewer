@@ -26,6 +26,7 @@ The goal is to create a more realistic, fair, and effective screening tool that 
 *Comprehensive assessment report with scores and recommendations*
 
 ## Architecture
+<img width="1248" height="832" alt="Architectural Diagram Agentic Interviewer" src="https://github.com/user-attachments/assets/617393c7-eb41-40b9-8cb2-97d4e4ab9331" />
 
 ### Models Used
 
@@ -78,7 +79,7 @@ Reflexion Interviewer/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd "Reflexion Interviewer"
+   cd "Reflexion-Interviewer"
    ```
 
 2. **Create a virtual environment**
@@ -177,9 +178,12 @@ All configuration is managed through environment variables in `.env`:
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributors
+Abhishek Rana
+Bipul Gyawali
+Abiral Rijal
+Sebsih Niraula
 
-[Add contributors here]
 
